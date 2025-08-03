@@ -21,7 +21,9 @@ The **Inventory Management System (IMS)** is a desktop-based application develop
 
 ## 🧑‍💻 Contributor
 
-- Danish Butt
+- Danish Butt(Primary Developer)
+
+> This project is developed as part of an academic submission for Air University, Multan Campus.
 
 ## 🚫 License
 
