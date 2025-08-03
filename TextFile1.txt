@@ -1,0 +1,6 @@
+Now for the above dashboard. I will make few changes one by one. Suppose that you are a senior C# developer. 
+And you have the list of reqirements. And you have to implement all of them in you project one by one. 
+First you have to add Project Management in your dash board. 
+Description: Add Interface for adding, editing, and deleting product information. 
+Key features: Product details, barcode generation, category selection.
+

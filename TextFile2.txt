@@ -1,0 +1,894 @@
+Same for the above code if the below columns didn't present then add them in the above code and if the code present extra column that is not present in the database colums then delete that specific column
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media.Animation;
+
+namespace Inventory_Management_System_SFML
+{
+    public partial class Dashboard : Window
+    {
+        private bool isSidebarVisible = true;
+        private List<Product> products = new List<Product>();
+        private List<PurchaseOrder> purchaseOrders = new List<PurchaseOrder>();
+        private List<SalesOrder> salesOrders = new List<SalesOrder>();
+        private List<Supplier> suppliers = new List<Supplier>();
+        private List<Customer> customers = new List<Customer>();
+        private List<Report> reports = new List<Report>();
+        private List<User> users = new List<User>();
+        private List<IntegrationLog> integrationLogs = new List<IntegrationLog>();
+        private List<Notification> notifications = new List<Notification>();
+        private List<AuditLog> auditLogs = new List<AuditLog>();
+        private List<string> userActivityLogs = new List<string>();
+        private int selectedCustomerIndex = -1;
+        private int selectedProductIndex = -1;
+        private int selectedSupplierIndex = -1;
+
+        public Dashboard()
+        {
+            InitializeComponent();
+        }
+
+        private void ToggleSidebarButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (isSidebarVisible)
+            {
+                ThicknessAnimation slideOutAnimation = new ThicknessAnimation
+                {
+                    To = new Thickness(-200, 0, 0, 0),
+                    Duration = TimeSpan.FromMilliseconds(300)
+                };
+                Sidebar.BeginAnimation(FrameworkElement.MarginProperty, slideOutAnimation);
+                isSidebarVisible = false;
+            }
+            else
+            {
+                ThicknessAnimation slideInAnimation = new ThicknessAnimation
+                {
+                    To = new Thickness(0, 0, 0, 0),
+                    Duration = TimeSpan.FromMilliseconds(300)
+                };
+                Sidebar.BeginAnimation(FrameworkElement.MarginProperty, slideInAnimation);
+                isSidebarVisible = true;
+            }
+        }
+
+        private void OverviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 0;
+        }
+
+        private void ProductManagementButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 1;
+        }
+
+        private void InventoryTrackingButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 2;
+            LoadInventoryData();
+        }
+
+        private void PurchaseOrdersButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 3;
+        }
+
+        private void SalesOrdersButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 4;
+        }
+
+        private void LogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = MessageBox.Show("Are you sure you want to log out?", "Logout Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                this.Hide();
+                MainWindow loginWindow = new MainWindow();
+                loginWindow.Show();
+            }
+        }
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Optional: Handle tab selection changes if needed
+        }
+
+        private void AddProduct_Click(object sender, RoutedEventArgs e)
+        {
+            var product = new Product
+            {
+                Id = products.Count + 1,
+                Name = txtProductName.Text,
+                SKU = txtSKU.Text,
+                Barcode = txtBarcode.Text,
+                Category = (cmbCategory.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                Quantity = int.TryParse(txtQuantity.Text, out var quantity) ? quantity : 0,
+                Price = decimal.TryParse(txtUnitPrice.Text, out var price) ? price : 0,
+                MinimumStockLevel = 10
+            };
+
+            products.Add(product);
+            RefreshProductList();
+            ClearProductFields();
+            CheckReorderAlerts();
+            LogUser Action($"Added product: {product.Name}", "Product Management");
+            RefreshAuditLogsList();
+        }
+
+        private void EditProduct_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedProductIndex >= 0 && selectedProductIndex < products.Count)
+            {
+                var product = products[selectedProductIndex];
+                product.Name = txtProductName.Text;
+                product.SKU = txtSKU.Text;
+                product.Barcode = txtBarcode.Text;
+                product.Category = (cmbCategory.SelectedItem as ComboBoxItem)?.Content.ToString();
+                product.Quantity = int.TryParse(txtQuantity.Text, out var quantity) ? quantity : 0;
+                product.Price = decimal.TryParse(txtUnitPrice.Text, out var price) ? price :  0;
+
+                RefreshProductList();
+                ClearProductFields();
+                selectedProductIndex = -1;
+                CheckReorderAlerts();
+            }
+        }
+
+        private void DeleteProduct_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedProductIndex >= 0 && selectedProductIndex < products.Count)
+            {
+                products.RemoveAt(selectedProductIndex);
+                RefreshProductList();
+                ClearProductFields();
+                selectedProductIndex = -1;
+                CheckReorderAlerts();
+            }
+        }
+
+        private void RefreshProductList()
+        {
+            lvProducts.ItemsSource = null;
+            lvProducts.ItemsSource = products;
+        }
+
+        private void ClearProductFields()
+        {
+            txtProductName.Clear();
+            txtSKU.Clear();
+            txtBarcode.Clear();
+            cmbCategory.SelectedIndex = -1;
+            txtQuantity.Clear();
+            txtUnitPrice.Clear();
+        }
+
+        private void lvProducts_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lvProducts.SelectedItem is Product selectedProduct)
+            {
+                selectedProductIndex = products.IndexOf(selectedProduct);
+                txtProductName.Text = selectedProduct.Name;
+                txtSKU.Text = selectedProduct.SKU;
+                txtBarcode.Text = selectedProduct.Barcode;
+                cmbCategory.SelectedItem = cmbCategory.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content.ToString() == selectedProduct.Category);
+                txtQuantity.Text = selectedProduct.Quantity.ToString();
+                txtUnitPrice.Text = selectedProduct.Price.ToString();
+            }
+        }
+
+        private void LoadInventoryData()
+        {
+            var inventoryData = new List<Product>
+            {
+                new Product { Name = "Product 1", SKU = "SKU001", Barcode = "1234567890123", Category = "Electronics", Quantity = 50, Price = 199.99m, Location = "Warehouse A", BatchSerialNumber = "BATCH001", LastStockMovement = DateTime.Now.AddDays(-1) },
+                new Product { Name = "Product 2", SKU = "SKU002", Barcode = "1234567890124", Category = "Clothing", Quantity = 30, Price = 49.99m, Location = "Warehouse B", BatchSerialNumber = "BATCH002", LastStockMovement = DateTime.Now.AddDays(-2) },
+            };
+
+            dgInventoryTracking.ItemsSource = inventoryData;
+        }
+
+        private void CreateOrder_Click(object sender, RoutedEventArgs e)
+        {
+            var order = new PurchaseOrder
+            {
+                Supplier = (cmbSupplier.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                Product = (cmbProduct.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                Quantity = int.TryParse(txtOrderQuantity.Text, out var quantity) ? quantity : 0,
+                Status = (cmbOrderStatus.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                OrderDate = DateTime.Now
+            };
+
+            purchaseOrders.Add(order);
+            RefreshOrderList();
+            ClearOrderFields();
+        }
+
+        private void ViewOrders_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshOrderList();
+        }
+
+        private void RefreshOrderList()
+        {
+            lvPurchaseOrders.ItemsSource = null;
+            lvPurchaseOrders.ItemsSource = purchaseOrders;
+        }
+
+        private void ClearOrderFields()
+        {
+            cmbSupplier.SelectedIndex = -1;
+            cmbProduct.SelectedIndex = -1;
+            txtOrderQuantity.Clear();
+            cmbOrderStatus.SelectedIndex = -1;
+        }
+
+        private void CreateSalesOrder_Click(object sender, RoutedEventArgs e)
+        {
+            var salesOrder = new SalesOrder
+            {
+                CustomerName = txtCustomerName.Text,
+                CustomerEmail = txtCustomerEmail.Text,
+                CustomerPhone = txtCustomerPhone.Text,
+                Product = (cmbSalesProduct.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                Quantity = int.TryParse(txtSalesQuantity.Text, out var quantity) ? quantity : 0,
+                Status = (cmbSalesOrderStatus.SelectedItem as ComboBoxItem)?.Content.ToString(),
+                OrderDate = DateTime.Now
+            };
+
+            salesOrders.Add(salesOrder);
+            RefreshSalesOrderList();
+            ClearSalesOrderFields();
+            AddNotification($"Sales order created for {salesOrder.CustomerName} - Product: {salesOrder.Product}, Quantity: {salesOrder.Quantity}.", "Order Status");
+        }
+
+        private void ViewSalesOrders_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshSalesOrderList();
+        }
+
+        private void RefreshSalesOrderList()
+        {
+            lvSalesOrders.ItemsSource = null;
+            lvSalesOrders.ItemsSource = salesOrders;
+        }
+
+        private void ClearSalesOrderFields()
+        {
+            txtCustomerName.Clear();
+            txtCustomerEmail.Clear();
+            txtCustomerPhone.Clear();
+            cmbSalesProduct.SelectedIndex = -1;
+            txtSalesQuantity.Clear();
+            cmbSalesOrderStatus.SelectedIndex = -1 }
+
+        private void AddSupplier_Click(object sender, RoutedEventArgs e)
+        {
+            var supplier = new Supplier
+            {
+                Name = txtSupplierName.Text,
+                Contact = txtSupplierContact.Text,
+                Rating = (cmbVendorRating.SelectedItem as ComboBoxItem)?.Content.ToString()
+            };
+
+            suppliers.Add(supplier);
+            RefreshSupplierList();
+            ClearSupplierFields();
+        }
+
+        private void EditSupplier_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.Count)
+            {
+                var supplier = suppliers[selectedSupplierIndex];
+                supplier.Name = txtSupplierName.Text;
+                supplier.Contact = txtSupplierContact.Text;
+                supplier.Rating = (cmbVendorRating.SelectedItem as ComboBoxItem)?.Content.ToString();
+
+                RefreshSupplierList();
+                ClearSupplierFields();
+                selectedSupplierIndex = -1; // Reset selection
+            }
+        }
+
+        private void DeleteSupplier_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedSupplierIndex >= 0 && selectedSupplierIndex < suppliers.Count)
+            {
+                suppliers.RemoveAt(selectedSupplierIndex);
+                RefreshSupplierList();
+                ClearSupplierFields();
+                selectedSupplierIndex = -1; // Reset selection
+            }
+        }
+
+        private void RefreshSupplierList()
+        {
+            lvSuppliers.ItemsSource = null; // Clear the current binding
+            lvSuppliers.ItemsSource = suppliers; // Rebind the updated supplier list
+        }
+
+        private void ClearSupplierFields()
+        {
+            txtSupplierName.Clear(); // Clear supplier name field
+            txtSupplierContact.Clear();
+            cmbVendorRating.SelectedIndex = -1; // Clear vendor rating selection
+        }
+
+        private void lvSuppliers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lvSuppliers.SelectedItem is Supplier selectedSupplier)
+            {
+                selectedSupplierIndex = suppliers.IndexOf(selectedSupplier);
+                txtSupplierName.Text = selectedSupplier.Name;
+                txtSupplierContact.Text = selectedSupplier.Contact;
+                cmbVendorRating.SelectedItem = cmbVendorRating.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content.ToString() == selectedSupplier.Rating);
+            }
+        }
+
+        private void AddCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            var customer = new Customer
+            {
+                Name = txtCustomerName.Text,
+                Email = txtCustomerEmail.Text,
+                Phone = txtCustomerPhone.Text
+            };
+
+            customers.Add(customer);
+            RefreshCustomerList();
+            ClearCustomerFields();
+        }
+
+        private void EditCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedCustomerIndex >= 0 && selectedCustomerIndex < customers.Count)
+            {
+                var customer = customers[selectedCustomerIndex];
+                customer.Name = txtCustomerName.Text;
+                customer.Email = txtCustomerEmail.Text;
+                customer.Phone = txtCustomerPhone.Text;
+
+                RefreshCustomerList();
+                ClearCustomerFields();
+                selectedCustomerIndex = -1; // Reset selection
+            }
+        }
+
+        private void DeleteCustomer_Click(object sender, RoutedEventArgs e)
+        {
+            if (selectedCustomerIndex >= 0 && selectedCustomerIndex < customers.Count)
+            {
+                customers.RemoveAt(selectedCustomerIndex);
+                RefreshCustomerList();
+                ClearCustomerFields();
+                selectedCustomerIndex = -1; // Reset selection
+            }
+        }
+
+        private void RefreshCustomerList()
+        {
+            lvCustomers.ItemsSource = null; // Clear the current binding
+            lvCustomers.ItemsSource = customers; // Rebind the updated customer list
+        }
+
+        private void ClearCustomerFields()
+        {
+            txtCustomerName.Clear(); // Clear customer name field
+            txtCustomerEmail.Clear(); // Clear customer email field
+            txtCustomerPhone.Clear(); // Clear customer phone field
+        }
+
+        private void lvCustomers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lvCustomers.SelectedItem is Customer selectedCustomer)
+            {
+                selectedCustomerIndex = customers.IndexOf(selectedCustomer);
+                txtCustomerName.Text = selectedCustomer.Name;
+                txtCustomerEmail.Text = selectedCustomer.Email;
+                txtCustomerPhone.Text = selectedCustomer.Phone;
+            }
+        }
+
+        private void CheckReorderAlerts()
+        {
+            var lowStockProducts = products.Where(p => p.Quantity < p.MinimumStockLevel).ToList();
+
+            if (lowStockProducts.Any())
+            {
+                string alertMessage = "Reorder Alerts:\n";
+                foreach (var product in lowStockProducts)
+                {
+                    alertMessage += $"{product.Name} (SKU: {product.SKU}) is below the minimum stock level. Current quantity: {product.Quantity}. Minimum required: {product.MinimumStockLevel}.\n";
+                    AddNotification($"Reorder Alert: {product.Name} is low on stock.", "Stock Alert");
+                }
+                MessageBox.Show(alertMessage, "Reorder Alerts", MessageBoxButton.OK, MessageBoxImage.Warning );
+            }
+        }
+
+        private void GenerateInventoryValuationReport_Click(object sender, RoutedEventArgs e)
+        {
+            var report = new Report
+            {
+                ReportType = "Inventory Valuation",
+                DateGenerated = DateTime.Now,
+                Status = "Generated"
+            };
+            reports.Add(report);
+            RefreshReportsList();
+        }
+
+        private void GenerateSalesTrendsReport_Click(object sender, RoutedEventArgs e)
+        {
+            var report = new Report
+            {
+                ReportType = "Sales Trends",
+                DateGenerated = DateTime.Now,
+                Status = "Generated"
+            };
+            reports.Add(report);
+            RefreshReportsList();
+        }
+
+        private void GenerateStockMovementReport_Click(object sender, RoutedEventArgs e)
+        {
+            var report = new Report
+            {
+                ReportType = "Stock Movement",
+                DateGenerated = DateTime.Now,
+                Status = "Generated"
+            };
+            reports.Add(report);
+            RefreshReportsList();
+        }
+
+        private void RefreshReportsList()
+        {
+            lvReports.ItemsSource = null;
+            lvReports.ItemsSource = reports;
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            var user = new User
+            {
+                UserName = txtUser Name.Text,
+                Role = (cmbUser Role.SelectedItem as ComboBoxItem)?.Content.ToString()
+            };
+
+            users.Add(user);
+            RefreshUser List();
+            ClearUser Fields();
+        }
+
+        private void RemoveUser _Click(object sender, RoutedEventArgs e)
+        {
+            if (lvUsers.SelectedItem is User selectedUser )
+            {
+                users.Remove(selectedUser );
+                RefreshUser List();
+                ClearUser Fields();
+            }
+        }
+
+        private void RefreshUser List()
+        {
+            lvUsers.ItemsSource = null;
+            lvUsers.ItemsSource = users;
+        }
+
+        private void ClearUser Fields()
+        {
+            txtUser Name.Clear();
+            cmbUser Role.SelectedIndex = -1;
+        }
+
+        private void lvUsers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lvUsers.SelectedItem is User selectedUser )
+            {
+                txtUser Name.Text = selectedUser .UserName;
+                cmbUser Role.SelectedItem = cmbUser Role.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content.ToString() == selectedUser .Role);
+            }
+        }
+
+        private void LogUser Action(string action, string affectedModule)
+        {
+            var log = new AuditLog
+            {
+                Action = action,
+                Timestamp = DateTime.Now,
+                AffectedModule = affectedModule
+            };
+            auditLogs.Add(log);
+            RefreshAuditLogsList();
+        }
+
+        private void RefreshAuditLogsList()
+        {
+            lvAuditLogs.ItemsSource = null;
+            lvAuditLogs.ItemsSource = auditLogs;
+        }
+
+        private void LookupProduct_Click(object sender, RoutedEventArgs e)
+        {
+            string barcode = txtBarcodeScan.Text.Trim();
+            var product = products.FirstOrDefault(p => p.Barcode == barcode);
+
+            if (product != null)
+            {
+                txtProductDetails.Text = $"Name: {product.Name}\nSKU: {product.SKU}\nCategory: {product.Category}\nQuantity: {product.Quantity}\nPrice: {product.Price:C}";
+                ProductDetailsPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                MessageBox.Show("Product not found.", "Lookup Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ProductDetailsPanel.Visibility = Visibility.Collapsed;
+            }
+            ClearBarcodeInput();
+        }
+
+        private void ClearBarcodeInput()
+        {
+            txtBarcodeScan.Clear();
+            ProductDetailsPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void AddNotification(string message, string type)
+        {
+            var notification = new Notification
+            {
+                Message = message,
+                Timestamp = DateTime.Now,
+                Type = type
+            };
+            notifications.Add(notification);
+            RefreshNotificationsList();
+        }
+
+        private void RefreshNotificationsList()
+        {
+            lvNotifications.ItemsSource = null;
+            lvNotifications.ItemsSource = notifications;
+        }
+
+        private void SaveRoleChanges_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedRole = (cmbAdjustUser Role.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedRole))
+            {
+                MessageBox.Show($"Role '{selectedRole}' has been saved.", "Role Changes", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser Action($"Changed user role to: {selectedRole}", "Settings");
+            }
+        }
+
+        private void SaveReorderThreshold_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(txtReorderThreshold.Text, out int newThreshold))
+            {
+                MessageBox.Show($"Reorder threshold set to: {newThreshold}", "Reorder Threshold", MessageBoxButton.OK, MessageBoxImage.Information);
+                Log User  Action($"Changed reorder threshold to: {newThreshold}", "Settings");
+            }
+            else
+            {
+                MessageBox.Show("Invalid input. Please enter a valid integer.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void SaveIntegrationSettings_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedIntegration = (cmbIntegration.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedIntegration))
+            {
+                MessageBox.Show($"Integration '{selectedIntegration}' has been saved.", "Integration Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed integration to: {selectedIntegration}", "Settings");
+            }
+        }
+
+        private void SaveEmailSettings_Click(object sender, RoutedEventArgs e)
+        {
+            string emailAddress = txtEmailAddress.Text.Trim();
+            if (!string.IsNullOrEmpty(emailAddress))
+            {
+                MessageBox.Show($"Email address '{emailAddress}' has been saved.", "Email Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed email address to: {emailAddress}", "Settings");
+            }
+        }
+
+        private void SavePassword_Click(object sender, RoutedEventArgs e)
+        {
+            string newPassword = txtNewPassword.Text.Trim();
+            if (!string.IsNullOrEmpty(newPassword))
+            {
+                MessageBox.Show("Password has been saved.", "Password Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed password.", "Settings");
+            }
+        }
+
+        private void SaveBackupSettings_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedBackupOption = (cmbBackupOption.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedBackupOption))
+            {
+                MessageBox.Show($"Backup option '{selectedBackupOption}' has been saved.", "Backup Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed backup option to: {selectedBackupOption}", "Settings");
+            }
+        }
+
+        private void SaveLoggingSettings_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedLoggingOption = (cmbLoggingOption.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedLoggingOption))
+            {
+                MessageBox.Show($"Logging option '{selectedLoggingOption}' has been saved.", "Logging Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed logging option to: {selectedLoggingOption}", "Settings");
+            }
+        }
+
+        private void SaveUser ActivityLogs_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedUser ActivityLogOption = (cmbUser ActivityLogOption.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedUser ActivityLogOption))
+            {
+                MessageBox.Show($"User  activity logs option '{selectedUser ActivityLogOption}' has been saved.", "User  Activity Logs Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed user activity logs option to: {selectedUser ActivityLogOption}", "Settings");
+            }
+        }
+
+        private void SaveSystemSettings_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedSystemSetting = (cmbSystemSetting.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedSystemSetting))
+            {
+                MessageBox.Show($"System setting '{selectedSystemSetting}' has been saved.", "System Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser  Action($"Changed system setting to: {selectedSystemSetting}", "Settings");
+            }
+        }
+
+        private void SaveSecuritySettings_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedSecuritySetting = (cmbSecuritySetting.SelectedItem as ComboBoxItem)?.Content.ToString();
+            if (!string.IsNullOrEmpty(selectedSecuritySetting))
+            {
+                ```csharp
+                MessageBox.Show($"Security setting '{selectedSecuritySetting}' has been saved.", "Security Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser Action($"Changed security setting to: {selectedSecuritySetting}", "Settings");
+            }
+        }
+
+        private void CreateBackup_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Backup created successfully!", "Backup", MessageBoxButton.OK, MessageBoxImage.Information);
+            LogUser Action("Created a backup.", "Backup and Restore");
+        }
+
+        private void SetBackupSchedule_Click(object sender, RoutedEventArgs e)
+        {
+            if (chkAutomaticBackup.IsChecked == true)
+            {
+                MessageBox.Show("Automatic backups have been enabled.", "Backup Schedule", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser Action("Enabled automatic backups.", "Backup and Restore");
+            }
+            else
+            {
+                MessageBox.Show("Automatic backups have been disabled.", "Backup Schedule", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogUser Action("Disabled automatic backups.", "Backup and Restore");
+            }
+        }
+
+        private void RestoreBackup_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Data restored from backup successfully!", "Restore", MessageBoxButton.OK, MessageBoxImage.Information);
+            LogUser Action("Restored data from backup.", "Backup and Restore");
+        }
+
+        private void SyncNow_Click(object sender, RoutedEventArgs e)
+        {
+            txtSyncStatus.Text = "Syncing...";
+            Task.Run(() =>
+            {
+                System.Threading.Thread.Sleep(2000);
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    txtSyncStatus.Text = "Synced Successfully";
+                    AddIntegrationLog("Synchronization completed successfully.");
+                });
+            });
+        }
+
+        private void AddIntegrationLog(string message)
+        {
+            var log = new IntegrationLog
+            {
+                LogMessage = message,
+                Timestamp = DateTime.Now
+            };
+            integrationLogs.Add(log);
+            RefreshIntegrationLogsList();
+        }
+
+        private void RefreshIntegrationLogsList()
+        {
+            lvIntegrationLogs.ItemsSource = null;
+            lvIntegrationLogs.ItemsSource = integrationLogs;
+        }
+
+        private void OpenUser Manual_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("User  Manual opened.", "User  Manual", MessageBoxButton.OK, MessageBoxImage.Information);
+            LogUser Action("Opened User Manual.", "Help and Support");
+        }
+
+        private void ViewFAQs_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("FAQs opened.", "FAQs", MessageBoxButton.OK, MessageBoxImage.Information);
+            LogUser Action("Viewed FAQs.", "Help and Support");
+        }
+
+        private void ContactSupport_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Contact support form opened.", "Contact Support", MessageBoxButton.OK, MessageBoxImage.Information);
+            LogUser Action("Opened Contact Support form.", "Help and Support");
+        }
+
+        private void SupplierManagementButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 5; // Supplier Management tab
+        }
+
+        private void CustomerManagementButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 6; // Customer Management tab
+        }
+
+        private void UserManagementButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 7; // User Management tab
+        }
+
+        private void AuditLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 8; // Audit Logs tab
+        }
+
+        private void BarcodeScanningButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 9; // Barcode Scanning tab
+        }
+
+        private void NotificationsCenterButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 10; // Notifications Center tab
+        }
+
+        private void SettingsConfigurationButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 11; // Settings and Configuration tab
+        }
+
+        private void BackupRestoreButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 12; // Backup and Restore tab
+        }
+
+        private void ReportsAnalyticsButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 13; // Reports and Analytics tab
+        }
+
+        private void HelpSupportButton_Click(object sender, RoutedEventArgs e)
+        {
+            TabControl.SelectedIndex = 14; // Help and Support tab
+        }
+    }
+
+    public class IntegrationLog
+    {
+        public string LogMessage { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string SKU { get; set; }
+        public string Barcode { get; set; }
+        public string Category { get; set; }
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
+        public string Location { get; set; }
+        public string BatchSerialNumber { get; set; }
+        public DateTime LastStockMovement { get; set; }
+        public int MinimumStockLevel { get; set; }
+    }
+
+    public class PurchaseOrder
+    {
+        public string Supplier { get; set; }
+        public string Product { get; set; }
+        public int Quantity { get; set; }
+        public string Status { get; set; }
+        public DateTime OrderDate { get; set; }
+    }
+
+    public class SalesOrder
+    {
+        public string CustomerName { get; set; }
+        public string CustomerEmail { get; set; }
+        public string CustomerPhone { get; set; }
+        public string Product { get; set; }
+        public int Quantity { get; set; }
+        public string Status { get; set; }
+        public DateTime OrderDate { get; set; }
+    }
+
+    public class Supplier
+    {
+        public string Name { get; set; }
+        public string Contact { get; set; }
+        public string Rating { get; set; }
+    }
+
+    public class AuditLog
+    {
+        public string Action { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string AffectedModule { get; set; }
+    }
+
+    public class Report
+    {
+        public string ReportType { get; set; }
+        public DateTime DateGenerated { get; set; }
+        public string Status { get; set; }
+    }
+
+    public class Customer
+    {
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string Phone { get; set; }
+    }
+
+    public class Notification
+    {
+        public string Message { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string Type { get; set; }
+    }
+
+    public class User
+    {
+        public string UserName { get; set; }
+        public string Role { get; set; }
+    }
+
+    public class StringToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string strValue)
+            {
+                return string.IsNullOrEmpty(strValue) ? Visibility.Collapsed : Visibility.Visible;
+            }
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+} 
