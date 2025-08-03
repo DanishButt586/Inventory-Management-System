@@ -1,29 +1,23 @@
 # Inventory Management System (IMS)
 
-A comprehensive desktop-based Inventory Management System (IMS) built using **C#**, **WPF**, and **SQL Server** to streamline inventory tracking, order management, and product control for businesses of all sizes.
+The **Inventory Management System (IMS)** is a desktop-based application developed using **C# and WPF**, designed to simplify and automate inventory operations for businesses. It allows efficient management of stock, product data, order processing, and reporting functionalities.
 
-## 📌 Project Overview
+## 🧠 Key Features
 
-The IMS application offers real-time stock monitoring, multi-location inventory tracking, order processing, and reporting. It aims to minimize human errors, reduce wastage, and optimize inventory flow in warehouses or retail operations.
+- **Inventory Tracking**: Real-time stock updates, batch & serial tracking, multi-location support, and stock movement history.
+- **Product Management**: Add, edit, categorize products with barcode integration and unit support.
+- **Order Management**: Handles purchase and sales orders, supplier/vendor management, and reorder alerts.
+- **Stock Control**: Record stock inflow/outflow, transfers, and manual adjustments.
+- **Reports & Analytics**: Generate insights through inventory valuation, demand forecasting, and sales/purchase analysis.
+- **User Management**: Role-based access control, audit logging, and secure authentication.
+- **Integration & Security**: Supports integration with accounting tools, encryption for sensitive data, and backup/recovery features.
 
-## 🔑 Key Features
+## 🖥️ Technologies Used
 
-- **Real-Time Inventory Tracking** – Automatic stock updates for all transactions.
-- **Multi-Location Support** – Track stock across various warehouses or store locations.
-- **Order Management** – Create and manage purchase/sales orders.
-- **Barcode Scanning** – Integrated barcode generation and scanning.
-- **User Roles & Access Control** – Admin, Manager, and Staff role-based permissions.
-- **Reports & Analytics** – Stock valuation, movement history, and demand forecasting.
-- **Audit Logs** – Full user activity tracking for accountability.
-- **Backup & Restore** – Secure data recovery options.
-
-## 🛠️ Tech Stack
-
-- **Frontend**: WPF (.NET)
-- **Backend**: C#
-- **Database**: SQL Server
-- **Version Control**: Git
-- **UI Theme**: Custom dark blue theme with icons
+- **Language**: C#
+- **Framework**: Windows Presentation Foundation (WPF)
+- **Database**: Microsoft SQL Server
+- **Tools**: Visual Studio, Git, NUnit
 
 ## 🧑‍💻 Contributor
 
